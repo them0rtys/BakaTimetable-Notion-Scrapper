@@ -9,7 +9,8 @@ The script:
 - updates changes to the subject, room, teacher, time, or status,
 - skips lessons that have not changed,
 - archives duplicate pages with the same lesson start time,
-- runs automatically through GitHub Actions after a push to `main` and every 30 minutes.
+- runs automatically through GitHub Actions after a push to `main` and every
+nearest full hour that is divisible by 3 (e.g., 12:00, 15:00).
 
 ## Notion Database
 
