@@ -2,7 +2,7 @@
 
 Automatically fetches the timetable from Bakalari and synchronizes it with a Notion database.
 
-Skript:
+The script:
 
 - imports the current week starting on Monday and the following two weeks,
 - creates new lessons in Notion,
@@ -11,11 +11,11 @@ Skript:
 - archives duplicate pages with the same lesson start time,
 - runs automatically through GitHub Actions after a push to `main` and every 30 minutes.
 
-export BAKALARI_URL="https://your-school.bakalari.cz/"
-export BAKALARI_USERNAME="your_username"
-export BAKALARI_PASSWORD="your_password"
+## Notion Database
 
-export NOTION_DATABASE_ID="your_database_id"
+The database must be shared with the Notion integration and must contain these properties:
+
+| Property | Type |
 | --- | --- |
 | `Název` | Title |
 | `Místnost` | Select |
@@ -33,10 +33,15 @@ Create a virtual environment and install the dependencies:
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 ```
-Open **Settings > Secrets and variables > Actions** in the repository and add these repository secrets:
+
 Set the environment variables:
+
+```bash
+export BAKALARI_URL="https://your-school.bakalari.cz/"
+export BAKALARI_USERNAME="your_username"
+export BAKALARI_PASSWORD="your_password"
 export NOTION_TOKEN="ntn_xxx"
-The workflow is located at `.github/workflows/sync-timetable.yml`. After it is pushed to the `main` branch, it runs automatically and then continues according to the 30-minute schedule. GitHub may slightly delay scheduled runs during periods of high load.
+export NOTION_DATABASE_ID="your_database_id"
 ```
 
 Run the synchronization:
@@ -70,4 +75,4 @@ Do not store credentials or tokens in the source code. Use local environment var
 
 ## License
 
-No license has been defined yet.
+[License](https://github.com/them0rtys/BakaTimetable-Notion-Scrapper/blob/main/LICENSE)
