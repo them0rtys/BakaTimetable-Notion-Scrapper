@@ -5,7 +5,7 @@ on:
     branches:
       - main
   schedule:
-    - cron: "0 */3 * * *"
+    - cron: "0 */3 * * *" 
 
 jobs:
   sync:
@@ -40,4 +40,3 @@ jobs:
 
       - name: Synchronize timetable
         run: python main.py
-
