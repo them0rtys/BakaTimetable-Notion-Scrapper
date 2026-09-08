@@ -15,7 +15,7 @@ Volitelné:
 
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import requests
@@ -162,6 +162,14 @@ class NotionClient:
         )
         response.raise_for_status()
 
+    def archive_page(self, page):
+        response = requests.patch(
+            f"{NOTION_API}/pages/{page['id']}",
+            headers=self.headers,
+            json={"archived": True},
+        )
+        response.raise_for_status()
+
     def get_existing_events(self):
         pages = []
         next_cursor = None
@@ -184,14 +192,26 @@ class NotionClient:
             next_cursor = data.get("next_cursor")
 
     @staticmethod
-    def event_key(event):
-        return event["start"]
+    def normalize_datetime(value):
+        if not value:
+            return ""
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return value
+        if parsed.tzinfo is not None:
+            return parsed.astimezone(timezone.utc).isoformat()
+        return parsed.isoformat()
 
-    @staticmethod
-    def page_event_key(page):
+    @classmethod
+    def event_key(cls, event):
+        return cls.normalize_datetime(event["start"])
+
+    @classmethod
+    def page_event_key(cls, page):
         properties = page.get("properties", {})
         date = properties.get("Datum", {}).get("date") or {}
-        return date.get("start", "")
+        return cls.normalize_datetime(date.get("start", ""))
 
     @staticmethod
     def page_values(page):
@@ -208,8 +228,8 @@ class NotionClient:
             "room": room.get("name", ""),
             "teacher": "".join(item.get("plain_text", "") for item in teacher),
             "status": "".join(item.get("plain_text", "") for item in status),
-            "start": date.get("start", ""),
-            "end": date.get("end", ""),
+            "start": NotionClient.normalize_datetime(date.get("start", "")),
+            "end": NotionClient.normalize_datetime(date.get("end", "")),
         }
 
     def sync_event(self, event, existing_by_key):
@@ -224,8 +244,8 @@ class NotionClient:
             "room": event["room"],
             "teacher": event["teacher"],
             "status": event["status"],
-            "start": event["start"],
-            "end": event["end"],
+            "start": self.normalize_datetime(event["start"]),
+            "end": self.normalize_datetime(event["end"]),
         }
         if current == desired:
             return "unchanged"
@@ -262,13 +282,26 @@ def main():
 
     notion = NotionClient(config["notion_token"], config["notion_database_id"])
     existing_pages = notion.get_existing_events()
-    existing_by_key = {
-        notion.page_event_key(page): page
-        for page in existing_pages
-        if notion.page_event_key(page)
-    }
+    existing_by_key = {}
+    duplicate_pages = []
+    for page in existing_pages:
+        page_key = notion.page_event_key(page)
+        if not page_key:
+            continue
+        if page_key in existing_by_key:
+            duplicate_pages.append(page)
+        else:
+            existing_by_key[page_key] = page
 
-    created, updated, unchanged, failed = 0, 0, 0, 0
+    created, updated, unchanged, archived, failed = 0, 0, 0, 0, 0
+    for page in duplicate_pages:
+        try:
+            notion.archive_page(page)
+            archived += 1
+        except requests.HTTPError as error:
+            failed += 1
+            print(f"Chyba při archivaci duplicity {page['id']}: {error}", file=sys.stderr)
+
     for event in events:
         try:
             result = notion.sync_event(event, existing_by_key)
@@ -288,7 +321,7 @@ def main():
 
     print(
         f"Notion: vytvořeno {created}, aktualizováno {updated}, "
-        f"beze změny {unchanged}, chyby {failed}"
+        f"beze změny {unchanged}, archivováno duplicit {archived}, chyby {failed}"
     )
     if failed:
         sys.exit(1)
