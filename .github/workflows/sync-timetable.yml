@@ -1,0 +1,38 @@
+name: Synchronize timetable
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    env:
+      BAKALARI_URL: ${{ secrets.BAKALARI_URL }}
+      BAKALARI_USERNAME: ${{ secrets.BAKALARI_USERNAME }}
+      BAKALARI_PASSWORD: ${{ secrets.BAKALARI_PASSWORD }}
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+      WEEKS_AHEAD: "3"
+      TIMEZONE: Europe/Prague
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Synchronize timetable
+        run: python main.py
+
